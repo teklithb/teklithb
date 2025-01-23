@@ -3,9 +3,25 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: jhub
-
 ---
-# Deployment
+# ConfigMap for JupyterHub
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-config
+  namespace: jhub
+data:
+  jupyterhub_config.py: |
+    c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator'
+    c.DummyAuthenticator.allowed_users = {'test'}
+    c.DummyAuthenticator.password = 'test'
+    c.ConfigurableHTTPProxy.api_port = 8001
+    c.ConfigurableHTTPProxy.internal_port = 8002
+    c.JupyterHub.ip = '0.0.0.0'
+    c.JupyterHub.port = 8000
+    c.Spawner.http_timeout = 120
+---
+# JupyterHub Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,7 +44,7 @@ spec:
         - containerPort: 8000
         volumeMounts:
         - name: jupyterhub-config-volume
-          mountPath: /srv/jupyterhub  # Mounting the directory
+          mountPath: /srv/jupyterhub/jupyterhub_config.py  # Full file path
           subPath: jupyterhub_config.py
         lifecycle:
           postStart:
@@ -44,30 +60,11 @@ spec:
           name: jupyterhub-config
 
 ---
-# ConfigMap
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: jupyterhub-config
-  namespace: jhub
-data:
-  jupyterhub_config.py: |
-    c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator'
-    c.DummyAuthenticator.allowed_users = {'test'}
-    c.DummyAuthenticator.password = 'test'
-    c.ConfigurableHTTPProxy.api_port = 8001
-    c.ConfigurableHTTPProxy.internal_port = 8002
-    c.JupyterHub.ip = '0.0.0.0'
-    c.JupyterHub.port = 8000
-    c.Spawner.http_timeout = 120
-
----
-# Service
 apiVersion: v1
 kind: Service
 metadata:
   name: jupyterhub-service
-  namespace: jhub
+  namespace: jhub  # Added namespace
 spec:
   selector:
     app: jupyterhub
