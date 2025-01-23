@@ -1,16 +1,79 @@
-## Hi there 👋
+# Namespace Definition
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jhub
 
-<!--
-**teklithb/teklithb** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyterhub
+  namespace: jhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyterhub
+  template:
+    metadata:
+      labels:
+        app: jupyterhub
+    spec:
+      containers:
+      - name: jupyterhub
+        image: jupyterhub/jupyterhub:latest
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: jupyterhub-config-volume
+          mountPath: /srv/jupyterhub  # Mounting the directory
+          subPath: jupyterhub_config.py
+        lifecycle:
+          postStart:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  useradd -m test
+      volumes:
+      - name: jupyterhub-config-volume
+        configMap:
+          name: jupyterhub-config
 
-Here are some ideas to get you started:
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-config
+  namespace: jhub
+data:
+  jupyterhub_config.py: |
+    c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator'
+    c.DummyAuthenticator.allowed_users = {'test'}
+    c.DummyAuthenticator.password = 'test'
+    c.ConfigurableHTTPProxy.api_port = 8001
+    c.ConfigurableHTTPProxy.internal_port = 8002
+    c.JupyterHub.ip = '0.0.0.0'
+    c.JupyterHub.port = 8000
+    c.Spawner.http_timeout = 120
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyterhub-service
+  namespace: jhub
+spec:
+  selector:
+    app: jupyterhub
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+      nodePort: 30008  # Adjust the port as needed
+  type: NodePort
