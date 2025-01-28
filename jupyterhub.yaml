@@ -53,18 +53,28 @@ spec:
                 - /bin/sh
                 - -c
                 - |
+                  echo "Installing required Python packages..."
+                  pip install --no-cache-dir jupyter_server jupyterlab &&
+                  echo "Starting JupyterHub..." &&
                   useradd -m test
+        command:
+        - sh
+        - -c
+        - |
+          echo "Launching JupyterHub..."
+          jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
       volumes:
       - name: jupyterhub-config-volume
         configMap:
           name: jupyterhub-config
 
 ---
+# JupyterHub Service
 apiVersion: v1
 kind: Service
 metadata:
   name: jupyterhub-service
-  namespace: jhub  # Added namespace
+  namespace: jhub
 spec:
   selector:
     app: jupyterhub
@@ -72,5 +82,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8000
-      nodePort: 30008  # Adjust the port as needed
+      nodePort: 30008
   type: NodePort
