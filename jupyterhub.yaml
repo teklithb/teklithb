@@ -4,7 +4,21 @@ kind: Namespace
 metadata:
   name: jhub
 ---
-# ConfigMap for JupyterHub
+# Persistent Volume Claim (PVC) for JupyterHub using CephFS
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+  namespace: jhub
+spec:
+  storageClassName: rook-cephfs  # Ensure this matches your CephFS storage class
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+# ConfigMap for JupyterHub Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -46,6 +60,8 @@ spec:
         - name: jupyterhub-config-volume
           mountPath: /srv/jupyterhub/jupyterhub_config.py  # Full file path
           subPath: jupyterhub_config.py
+        - name: jupyterhub-pvc
+          mountPath: /home/jupyter  # This ensures persistent storage for user data
         lifecycle:
           postStart:
             exec:
@@ -67,9 +83,11 @@ spec:
       - name: jupyterhub-config-volume
         configMap:
           name: jupyterhub-config
-
+      - name: jupyterhub-pvc
+        persistentVolumeClaim:
+          claimName: my-pvc  # Uses the CephFS PVC for storage
 ---
-# JupyterHub Service
+# JupyterHub Service (NodePort for External Access)
 apiVersion: v1
 kind: Service
 metadata:
@@ -82,5 +100,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8000
-      nodePort: 30008
+      nodePort: 30008  # Ensure this port is open in your firewall
   type: NodePort
